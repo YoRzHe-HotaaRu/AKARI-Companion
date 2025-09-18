@@ -1,0 +1,290 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+
+const API_URL = 'http://localhost:3000/api';
+
+// Define types for our data
+interface Manga {
+  id: string;
+  title: string;
+  image: string;
+  author?: string;
+  status?: string;
+  genres?: string[];
+  description?: string;
+  chapters?: Chapter[];
+}
+
+interface Chapter {
+  id: string;
+  name: string;
+  date: string;
+}
+
+// Function to convert image URL to proxy URL - use full backend URL
+function getProxyUrl(originalUrl: string): string {
+  return `${API_URL}/image?url=${encodeURIComponent(originalUrl)}`;
+}
+
+// Get the manga ID from the URL
+const mangaId = Astro.params.id;
+---
+
+<BaseLayout>
+  <div class="manga-details-container" id="manga-details-container" data-manga-id={mangaId}>
+    <div class="loading">
+      <p>Loading manga details...</p>
+    </div>
+  </div>
+
+  <script>
+    // Get the manga ID from the data attribute
+    const container = document.getElementById('manga-details-container');
+    const mangaId = container?.getAttribute('data-manga-id') || '';
+    const API_URL = 'http://localhost:3000/api';
+    
+    // Function to convert image URL to proxy URL
+    function getProxyUrl(originalUrl: string): string {
+      return `${API_URL}/image?url=${encodeURIComponent(originalUrl)}`;
+    }
+    
+    // Define types for our data
+    interface Manga {
+      id: string;
+      title: string;
+      image: string;
+      author?: string;
+      status?: string;
+      genres?: string[];
+      description?: string;
+      chapters?: Chapter[];
+    }
+    
+    interface Chapter {
+      id: string;
+      name: string;
+      date: string;
+    }
+    
+    // Fetch manga details
+    async function fetchMangaDetails(): Promise<void> {
+      if (!mangaId) {
+        renderError('Manga ID is missing');
+        return;
+      }
+      
+      try {
+        console.log(`Fetching manga details for ID: ${mangaId}`);
+        const response = await fetch(`${API_URL}/manga/${mangaId}`);
+        
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const manga: Manga = await response.json();
+        console.log('Manga data received:', manga);
+        
+        // Render the manga details
+        renderMangaDetails(manga);
+      } catch (error) {
+        console.error('Error fetching manga details:', error);
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        renderError(errorMessage);
+      }
+    }
+    
+    // Function to render manga details
+    function renderMangaDetails(manga: Manga): void {
+      if (!container) return;
+      
+      let html = `
+        <div class="manga-header">
+          <div class="manga-cover">
+            <img src="${getProxyUrl(manga.image)}" alt="${manga.title}" />
+          </div>
+          <div class="manga-info">
+            <h1>${manga.title}</h1>
+            <div class="manga-meta">
+      `;
+      
+      if (manga.author) {
+        html += `<p><strong>Author:</strong> ${manga.author}</p>`;
+      }
+      
+      if (manga.status) {
+        html += `<p><strong>Status:</strong> ${manga.status}</p>`;
+      }
+      
+      if (manga.genres && manga.genres.length > 0) {
+        html += `<p><strong>Genres:</strong> ${manga.genres.join(', ')}</p>`;
+      }
+      
+      html += `
+            </div>
+            <div class="manga-description">
+              <h2>Description</h2>
+              <p>${manga.description || 'No description available.'}</p>
+            </div>
+          </div>
+        </div>
+        
+        <div class="chapters-container">
+          <h2>Chapters</h2>
+          <div class="chapters-list">
+      `;
+      
+      if (manga.chapters && manga.chapters.length > 0) {
+        manga.chapters.forEach((chapter: Chapter) => {
+          html += `
+            <a href="/read/${chapter.id}" class="chapter-item">
+              <span class="chapter-name">${chapter.name}</span>
+              <span class="chapter-date">${chapter.date}</span>
+            </a>
+          `;
+        });
+      } else {
+        html += '<p>No chapters available.</p>';
+      }
+      
+      html += `
+          </div>
+        </div>
+      `;
+      
+      container.innerHTML = html;
+    }
+    
+    // Function to render error
+    function renderError(errorMessage: string): void {
+      if (!container) return;
+      
+      container.innerHTML = `
+        <div class="error-message">
+          <h2>Error</h2>
+          <p>${errorMessage}</p>
+          <a href="/">Back to Home</a>
+        </div>
+      `;
+    }
+    
+    // Fetch the manga details when the page loads
+    fetchMangaDetails();
+  </script>
+</BaseLayout>
+
+<style>
+  .manga-details-container {
+    margin-top: 20px;
+  }
+  
+  .manga-header {
+    display: flex;
+    gap: 30px;
+    margin-bottom: 40px;
+  }
+  
+  .manga-cover {
+    flex: 0 0 300px;
+  }
+  
+  .manga-cover img {
+    width: 100%;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    background-color: #f0f0f0; /* Add a background color while loading */
+  }
+  
+  .manga-info {
+    flex: 1;
+  }
+  
+  .manga-info h1 {
+    margin-top: 0;
+    color: var(--primary);
+  }
+  
+  .manga-meta {
+    margin: 20px 0;
+  }
+  
+  .manga-meta p {
+    margin: 5px 0;
+  }
+  
+  .manga-description {
+    margin-top: 30px;
+  }
+  
+  .manga-description h2 {
+    color: var(--primary);
+    border-bottom: 1px solid #eee;
+    padding-bottom: 10px;
+  }
+  
+  .chapters-container {
+    margin-top: 40px;
+  }
+  
+  .chapters-container h2 {
+    color: var(--primary);
+    border-bottom: 1px solid #eee;
+    padding-bottom: 10px;
+  }
+  
+  .chapters-list {
+    max-height: 600px;
+    overflow-y: auto;
+    border: 1px solid #eee;
+    border-radius: 8px;
+  }
+  
+  .chapter-item {
+    display: flex;
+    justify-content: space-between;
+    padding: 15px 20px;
+    border-bottom: 1px solid #eee;
+    text-decoration: none;
+    color: var(--text);
+    transition: background-color 0.2s;
+  }
+  
+  .chapter-item:hover {
+    background-color: #f5f5f5;
+  }
+  
+  .chapter-item:last-child {
+    border-bottom: none;
+  }
+  
+  .chapter-name {
+    font-weight: 500;
+  }
+  
+  .chapter-date {
+    color: #777;
+    font-size: 0.9rem;
+  }
+  
+  .error-message, .loading {
+    text-align: center;
+    padding: 40px;
+    background-color: var(--card-bg);
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  }
+  
+  .error-message {
+    color: #721c24;
+    background-color: #f8d7da;
+  }
+  
+  .error-message a {
+    display: inline-block;
+    margin-top: 20px;
+    padding: 10px 20px;
+    background-color: var(--primary);
+    color: white;
+    text-decoration: none;
+    border-radius: 4px;
+  }
+</style>

@@ -1,0 +1,193 @@
+---
+const API_URL = 'http://localhost:3000/api';
+
+// Function to convert image URL to proxy URL - use full backend URL
+function getProxyUrl(originalUrl: string): string {
+  return `${API_URL}/image?url=${encodeURIComponent(originalUrl)}`;
+}
+---
+
+<div class="search-container" data-api-url={API_URL}>
+  <form id="search-form" class="search-form">
+    <input 
+      type="text" 
+      id="search-input" 
+      placeholder="Search for manga..." 
+      class="search-input"
+    />
+    <button type="submit" class="search-button">Search</button>
+  </form>
+  <div id="search-results" class="search-results"></div>
+</div>
+
+<script>
+  // Get the API URL from the data attribute
+  const searchContainer = document.querySelector('.search-container');
+  const API_URL = searchContainer?.getAttribute('data-api-url') || 'http://localhost:3000/api';
+  
+  const searchForm = document.getElementById('search-form');
+  const searchInput = document.getElementById('search-input') as HTMLInputElement;
+  const searchResults = document.getElementById('search-results');
+  
+  // Function to convert image URL to proxy URL
+  function getProxyUrl(originalUrl: string): string {
+    return `${API_URL}/image?url=${encodeURIComponent(originalUrl)}`;
+  }
+  
+  // Define type for manga object
+  interface Manga {
+    id: string;
+    title: string;
+    image: string;
+  }
+  
+  if (searchForm && searchInput && searchResults) {
+    searchForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const query = searchInput.value.trim();
+      
+      if (query) {
+        try {
+          // Show loading state
+          searchResults.innerHTML = '<p class="loading">Searching...</p>';
+          
+          const response = await fetch(`${API_URL}/search?query=${encodeURIComponent(query)}`);
+          
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
+          
+          const data = await response.json();
+          
+          // Extract the array from the response
+          let results: Manga[] = [];
+          if (data && data.mangas && Array.isArray(data.mangas)) {
+            results = data.mangas;
+          } else {
+            console.error('Unexpected API response structure:', data);
+            searchResults.innerHTML = '<p class="error">Error: Unexpected API response</p>';
+            return;
+          }
+          
+          // Clear previous results
+          searchResults.innerHTML = '';
+          
+          if (results.length === 0) {
+            searchResults.innerHTML = '<p class="no-results">No results found</p>';
+            return;
+          }
+          
+          // Create a grid for results
+          const resultsGrid = document.createElement('div');
+          resultsGrid.className = 'manga-grid';
+          
+          results.forEach((manga: Manga) => {
+            const card = document.createElement('div');
+            card.className = 'manga-card';
+            card.innerHTML = `
+              <a href="/manga/${manga.id}">
+                <img src="${getProxyUrl(manga.image)}" alt="${manga.title}" class="manga-cover" />
+                <h3 class="manga-title">${manga.title}</h3>
+              </a>
+            `;
+            resultsGrid.appendChild(card);
+          });
+          
+          searchResults.appendChild(resultsGrid);
+        } catch (error) {
+          console.error('Error searching manga:', error);
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          searchResults.innerHTML = `<p class="error">Error: ${errorMessage}</p>`;
+        }
+      }
+    });
+  }
+</script>
+
+<style>
+  .search-container {
+    margin: 20px 0;
+  }
+  
+  .search-form {
+    display: flex;
+    max-width: 600px;
+    margin: 0 auto;
+  }
+  
+  .search-input {
+    flex: 1;
+    padding: 12px 15px;
+    border: 1px solid #ddd;
+    border-radius: 4px 0 0 4px;
+    font-size: 1rem;
+  }
+  
+  .search-button {
+    padding: 12px 20px;
+    background-color: var(--primary);
+    color: white;
+    border: none;
+    border-radius: 0 4px 4px 0;
+    cursor: pointer;
+    font-size: 1rem;
+  }
+  
+  .search-button:hover {
+    background-color: #2980b9;
+  }
+  
+  .search-results {
+    margin-top: 20px;
+  }
+  
+  .loading, .no-results, .error {
+    text-align: center;
+    padding: 10px;
+  }
+  
+  .error {
+    color: #721c24;
+    background-color: #f8d7da;
+    border-radius: 4px;
+  }
+  
+  .manga-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 20px;
+  }
+  
+  .manga-card {
+    background-color: var(--card-bg);
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    transition: transform 0.2s;
+  }
+  
+  .manga-card:hover {
+    transform: translateY(-5px);
+  }
+  
+  .manga-cover {
+    width: 100%;
+    height: 280px;
+    object-fit: cover;
+    background-color: #f0f0f0; /* Add a background color while loading */
+  }
+  
+  .manga-title {
+    padding: 10px;
+    margin: 0;
+    font-size: 1rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  
+  a {
+    text-decoration: none;
+    color: inherit;
+  }
+</style>

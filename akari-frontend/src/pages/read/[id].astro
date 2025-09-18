@@ -1,0 +1,222 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+
+const API_URL = 'http://localhost:3000/api';
+
+// Define types for our data
+interface Chapter {
+  mangaName?: string;
+  chapterName?: string;
+  chapterNumber?: string;
+  prevChapterId?: string;
+  nextChapterId?: string;
+  mangaId?: string;
+  images?: string[];
+}
+
+// Function to convert image URL to proxy URL - use full backend URL
+function getProxyUrl(originalUrl: string): string {
+  return `${API_URL}/image?url=${encodeURIComponent(originalUrl)}`;
+}
+
+export async function getStaticPaths() {
+  // We'll use dynamic routing for this page
+  return [];
+}
+
+export async function get({ params }: { params: { id: string } }) {
+  try {
+    const response = await fetch(`${API_URL}/chapter/${params.id}`);
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    
+    const chapter: Chapter = await response.json();
+    
+    return {
+      props: {
+        chapter,
+        error: null
+      }
+    };
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    return {
+      props: {
+        chapter: null,
+        error: errorMessage
+      }
+    };
+  }
+}
+
+const { chapter, error } = Astro.props as { chapter: Chapter | null; error: string | null };
+---
+
+<BaseLayout>
+  <div class="reader-container">
+    {error ? (
+      <div class="error-message">
+        <h2>Error</h2>
+        <p>{error}</p>
+        <a href="/">Back to Home</a>
+      </div>
+    ) : chapter ? (
+      <>
+        <div class="reader-header">
+          <h1>{chapter.mangaName || 'Reading Manga'}</h1>
+          <h2>{chapter.chapterName || `Chapter ${chapter.chapterNumber}`}</h2>
+          <div class="reader-navigation">
+            {chapter.prevChapterId && (
+              <a href={`/read/${chapter.prevChapterId}`} class="nav-button prev-button">
+                Previous Chapter
+              </a>
+            )}
+            <a href={`/manga/${chapter.mangaId}`} class="nav-button">
+              Back to Manga
+            </a>
+            {chapter.nextChapterId && (
+              <a href={`/read/${chapter.nextChapterId}`} class="nav-button next-button">
+                Next Chapter
+              </a>
+            )}
+          </div>
+        </div>
+        
+        <div class="reader-content">
+          {chapter.images && chapter.images.length > 0 ? (
+            chapter.images.map((image: string, index: number) => (
+              <div class="page-container">
+                <img src={getProxyUrl(image)} alt={`Page ${index + 1}`} class="manga-page" />
+                <p class="page-number">Page {index + 1}</p>
+              </div>
+            ))
+          ) : (
+            <p>No images available for this chapter.</p>
+          )}
+        </div>
+        
+        <div class="reader-footer">
+          <div class="reader-navigation">
+            {chapter.prevChapterId && (
+              <a href={`/read/${chapter.prevChapterId}`} class="nav-button prev-button">
+                Previous Chapter
+              </a>
+            )}
+            <a href={`/manga/${chapter.mangaId}`} class="nav-button">
+              Back to Manga
+            </a>
+            {chapter.nextChapterId && (
+              <a href={`/read/${chapter.nextChapterId}`} class="nav-button next-button">
+                Next Chapter
+              </a>
+            )}
+          </div>
+        </div>
+      </>
+    ) : (
+      <div class="loading">
+        <p>Loading chapter...</p>
+      </div>
+    )}
+  </div>
+</BaseLayout>
+
+<style>
+  .reader-container {
+    margin-top: 20px;
+  }
+  
+  .reader-header {
+    text-align: center;
+    margin-bottom: 30px;
+    padding: 20px;
+    background-color: var(--card-bg);
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  }
+  
+  .reader-header h1 {
+    margin-top: 0;
+    color: var(--primary);
+  }
+  
+  .reader-header h2 {
+    margin-bottom: 20px;
+    color: #555;
+  }
+  
+  .reader-navigation {
+    display: flex;
+    justify-content: center;
+    gap: 15px;
+    flex-wrap: wrap;
+  }
+  
+  .nav-button {
+    display: inline-block;
+    padding: 10px 20px;
+    background-color: var(--primary);
+    color: white;
+    text-decoration: none;
+    border-radius: 4px;
+    transition: background-color 0.2s;
+  }
+  
+  .nav-button:hover {
+    background-color: #2980b9;
+  }
+  
+  .reader-content {
+    margin-bottom: 30px;
+  }
+  
+  .page-container {
+    margin-bottom: 30px;
+    text-align: center;
+  }
+  
+  .manga-page {
+    max-width: 100%;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    background-color: #f0f0f0; /* Add a background color while loading */
+  }
+  
+  .page-number {
+    margin-top: 10px;
+    color: #777;
+  }
+  
+  .reader-footer {
+    text-align: center;
+    padding: 20px;
+    background-color: var(--card-bg);
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  }
+  
+  .error-message, .loading {
+    text-align: center;
+    padding: 40px;
+    background-color: var(--card-bg);
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  }
+  
+  .error-message {
+    color: #721c24;
+    background-color: #f8d7da;
+  }
+  
+  .error-message a {
+    display: inline-block;
+    margin-top: 20px;
+    padding: 10px 20px;
+    background-color: var(--primary);
+    color: white;
+    text-decoration: none;
+    border-radius: 4px;
+  }
+</style>
